@@ -67,6 +67,7 @@ MacWindow::MacWindow(int id, bool scrollable, bool resizable, bool editable, Mac
 
 	_closeable = false;
 
+	_borderType = -1;
 	_borderWidth = kBorderWidth;
 
 	_titleVisible = true;
@@ -216,6 +217,7 @@ void MacWindow::updateOuterDims() {
 		return;
 
 	if (_macBorder.hasBorder(_active) && _macBorder.hasOffsets()) {
+		warning("OFFSETS: left %d top %d right %d bottom %d", _macBorder.getOffset().left, _macBorder.getOffset().top, _macBorder.getOffset().bottom, _macBorder.getOffset().right);
 		_dims = Common::Rect(
 			_innerDims.left - _macBorder.getOffset().left,
 			_innerDims.top - _macBorder.getOffset().top,
@@ -255,7 +257,7 @@ void MacWindow::drawBorderFromSurface(ManagedSurface *g) {
 	inside.moveTo(_macBorder.getOffset().left, _macBorder.getOffset().top);
 	g->fillRect(inside, kColorGreen);
 
-	_macBorder.blitBorderInto(_borderSurface, _active);
+	_macBorder.blitBorderInto(*g, _wm, _active);
 }
 
 void MacWindow::drawSimpleBorder(ManagedSurface *g) {
@@ -384,18 +386,16 @@ void MacWindow::loadBorder(Common::SeekableReadStream &file, bool active, int lo
 void MacWindow::setBorder(Graphics::TransparentSurface *surface, bool active, int lo, int ro, int to, int bo) {
 	surface->applyColorKey(255, 0, 255, false);
 
-	if (active)
+	if (active) {
 		_macBorder.addActiveBorder(surface);
-	else
-		_macBorder.addInactiveBorder(surface);
-
-	if (!_macBorder.hasOffsets()) {
 		if (lo + ro + to + bo > -4) { // Checking against default -1
 			_macBorder.setOffsets(lo, ro, to, bo);
 		}
+	} else {
+		_macBorder.addInactiveBorder(surface);
 	}
 
-	updateInnerDims();
+	updateOuterDims();
 }
 
 void MacWindow::setCloseable(bool closeable) {
@@ -578,6 +578,27 @@ bool MacWindow::processEvent(Common::Event &event) {
 		return (*_callback)(click, event, _dataPtr);
 	else
 		return false;
+}
+
+void MacWindow::setBorderType(int borderType) {
+	_borderType = borderType;
+	if (borderType < 0) {
+		disableBorder();
+	} else {
+		Common::Rect offsets = _wm->getBorderOffsets(borderType);
+	
+		Common::SeekableReadStream *activeFile = _wm->getBorderFile(borderType, true);
+		if (activeFile) {
+			loadBorder(*activeFile, true, offsets.left, offsets.right, offsets.top, offsets.bottom);
+			delete activeFile;
+		}
+
+		Common::SeekableReadStream *inactiveFile = _wm->getBorderFile(borderType, false);
+		if (inactiveFile) {
+			loadBorder(*inactiveFile, false, offsets.left, offsets.right, offsets.top, offsets.bottom);
+			delete inactiveFile;
+		}
+	}
 }
 
 } // End of namespace Graphics

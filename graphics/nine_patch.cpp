@@ -47,6 +47,7 @@
 #include "common/array.h"
 #include "graphics/transparent_surface.h"
 #include "graphics/nine_patch.h"
+#include "graphics/macgui/macwindowmanager.h"
 
 #include "graphics/managed_surface.h"
 
@@ -207,7 +208,7 @@ bad_bitmap:
 	}
 }
 
-void NinePatchBitmap::blit(Graphics::Surface &target, int dx, int dy, int dw, int dh, byte *palette, int numColors) {
+void NinePatchBitmap::blit(Graphics::Surface &target, int dx, int dy, int dw, int dh, MacWindowManager *wm) {
 	/* don't draw bitmaps that are smaller than the fixed area */
 	if (dw < _h._fix || dh < _v._fix)
 		return;
@@ -231,7 +232,7 @@ void NinePatchBitmap::blit(Graphics::Surface &target, int dx, int dy, int dw, in
 
 	/* Handle CLUT8 */
 	if (target.format.bytesPerPixel == 1) {
-		if (!palette)
+		if (!wm)
 			error("NinePatchBitmap::blit(): Trying to blit into a surface with 8bpp, you need a palette.");
 
 		Surface *srf = new Surface();
@@ -247,8 +248,10 @@ void NinePatchBitmap::blit(Graphics::Surface &target, int dx, int dy, int dw, in
 		for (uint i = 0; i < srf->w; ++i) {
 			for (uint j = 0; j < srf->h; ++j) {
 				uint32 color = *(uint32*)srf->getBasePtr(i, j);
+				byte r, g, b;
+				_bmp->format.colorToRGB(color, r, g, b);
 				if (color > 0) {
-					*((byte *)target.getBasePtr(i, j)) = closestGrayscale(color, palette, numColors);
+					*((byte *)target.getBasePtr(i, j)) = wm->findBestColor(r, g, b);
 				}
 			}
 		}
