@@ -1314,7 +1314,7 @@ void MacText::setSelection(int pos, bool start) {
 				}
 				break;
 			} else {
-				pos -= getLineCharWidth(row) + 1; // (row ? 1 : 0);
+				pos -= getLineCharWidth(row);
 			}
 
 			row++;
